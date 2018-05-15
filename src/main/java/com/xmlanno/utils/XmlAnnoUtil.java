@@ -2,6 +2,13 @@ package com.xmlanno.utils;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Enumeration;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.isNull;
 
@@ -17,6 +24,8 @@ public final class XmlAnnoUtil {
 
         return t.isEmpty();
     }
+
+    public static <T> boolean isEmpty(T[] t) { return t == null || t.length == 0; }
 
     public static boolean hasText(String t) { return !isNull(t) && !t.trim().isEmpty(); }
 
@@ -39,5 +48,18 @@ public final class XmlAnnoUtil {
             sb.append(str);
 
         return sb.toString();
+    }
+
+    public static <T> void forEachRemaining(Enumeration<T> e, Consumer<? super T> c) {
+        while (e.hasMoreElements()) c.accept(e.nextElement());
+    }
+
+    public static <T, K, U> Collector<T, ?, Map<K, U>> toLinkedMap(Function<? super T, ? extends K> keyMapper,
+                                                                   Function<? super T, ? extends U> valueMapper) {
+        return Collectors.toMap(keyMapper, valueMapper,
+                        (u, v) -> {
+                            throw new IllegalStateException(String.format("Duplicate key %s", u));
+                        },
+                        LinkedHashMap::new);
     }
 }

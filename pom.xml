@@ -31,6 +31,14 @@
       <optional>false</optional> <!-- case: when not actually scanning with javassist or if using {@link Reflections.collect()} -->
     </dependency>
 
+    <!-- https://mvnrepository.com/artifact/javax.servlet/servlet-api -->
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>servlet-api</artifactId>
+      <version>3.0-alpha-1</version>
+      <scope>provided</scope>
+    </dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>

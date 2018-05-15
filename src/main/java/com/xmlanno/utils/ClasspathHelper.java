@@ -1,5 +1,43 @@
 package com.xmlanno.utils;
 
+import com.xmlanno.reflection.Reflections;
+
+import javax.servlet.ServletContext;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.net.URLDecoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.xmlanno.utils.XmlAnnoUtil.isEmpty;
+import static com.xmlanno.utils.XmlAnnoUtil.toLinkedMap;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
+
 public final class ClasspathHelper {
 
     /**
@@ -8,9 +46,7 @@ public final class ClasspathHelper {
      *
      * @return the context class loader, may be null
      */
-    public static ClassLoader contextClassLoader() {
-        return Thread.currentThread().getContextClassLoader();
-    }
+    public static ClassLoader contextClassLoader() { return Thread.currentThread().getContextClassLoader(); }
 
     /**
      * Gets the class loader of this library.
@@ -18,9 +54,7 @@ public final class ClasspathHelper {
      *
      * @return the static library class loader, may be null
      */
-    public static ClassLoader staticClassLoader() {
-        return Reflections.class.getClassLoader();
-    }
+    public static ClassLoader staticClassLoader() { return Reflections.class.getClassLoader(); }
 
     /**
      * Returns an array of class Loaders initialized from the specified array.
@@ -29,17 +63,20 @@ public final class ClasspathHelper {
      *
      * @return the array of class loaders, not null
      */
-    public static ClassLoader[] classLoaders(ClassLoader... classLoaders) {
-        if (classLoaders != null && classLoaders.length != 0) {
-            return classLoaders;
-        } else {
-            ClassLoader contextClassLoader = contextClassLoader(), staticClassLoader = staticClassLoader();
-            return contextClassLoader != null ?
-                    staticClassLoader != null && contextClassLoader != staticClassLoader ?
-                            new ClassLoader[]{contextClassLoader, staticClassLoader} :
-                            new ClassLoader[]{contextClassLoader} :
-                    new ClassLoader[] {};
+    public static ClassLoader[] classLoaders(final ClassLoader... classLoaders) {
 
+        if (!isEmpty(classLoaders))
+            return classLoaders;
+        else {
+
+            ClassLoader contextClassLoader = contextClassLoader(), staticClassLoader = staticClassLoader();
+
+
+            return !isNull(contextClassLoader)
+                    ? !isNull(staticClassLoader) && contextClassLoader != staticClassLoader
+                        ? new ClassLoader[]{contextClassLoader, staticClassLoader}
+                        : new ClassLoader[]{contextClassLoader}
+                    : new ClassLoader[]{};
         }
     }
 
@@ -57,9 +94,7 @@ public final class ClasspathHelper {
      *
      * @return the collection of URLs, not null
      */
-    public static Collection<URL> forPackage(String name, ClassLoader... classLoaders) {
-        return forResource(resourceName(name), classLoaders);
-    }
+    public static Collection<URL> forPackage(final String name, final ClassLoader... classLoaders) { return forResource(resourceName(name), classLoaders); }
 
     /**
      * Returns a distinct collection of URLs based on a resource.
@@ -75,13 +110,17 @@ public final class ClasspathHelper {
      *
      * @return the collection of URLs, not null
      */
-    public static Collection<URL> forResource(String resourceName, ClassLoader... classLoaders) {
-        final List<URL> result = new ArrayList<URL>();
+    public static Collection<URL> forResource(final String resourceName, final ClassLoader... classLoaders) {
+        final List<URL> result = new ArrayList<>();
         final ClassLoader[] loaders = classLoaders(classLoaders);
-        for (ClassLoader classLoader : loaders) {
+
+        Stream.of(loaders).forEach(classLoader -> {
+
             try {
                 final Enumeration<URL> urls = classLoader.getResources(resourceName);
+
                 while (urls.hasMoreElements()) {
+
                     final URL url = urls.nextElement();
                     int index = url.toExternalForm().lastIndexOf(resourceName);
                     if (index != -1) {
@@ -92,11 +131,10 @@ public final class ClasspathHelper {
                     }
                 }
             } catch (IOException e) {
-                if (Reflections.log != null) {
-                    Reflections.log.error("error getting resources for " + resourceName, e);
-                }
+                if (nonNull(Reflections.log)) Reflections.log.severe("error getting resources for " + resourceName);
+                e.printStackTrace();
             }
-        }
+        });
         return distinctUrls(result);
     }
 
@@ -110,23 +148,42 @@ public final class ClasspathHelper {
      *
      * @return the URL containing the class, null if not found
      */
-    public static URL forClass(Class<?> aClass, ClassLoader... classLoaders) {
+    public static URL forClass(final Class<?> aClass, final ClassLoader... classLoaders) {
+
         final ClassLoader[] loaders = classLoaders(classLoaders);
         final String resourceName = aClass.getName().replace(".", "/") + ".class";
-        for (ClassLoader classLoader : loaders) {
-            try {
-                final URL url = classLoader.getResource(resourceName);
-                if (url != null) {
-                    final String normalizedUrl = url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(aClass.getPackage().getName().replace(".", "/")));
-                    return new URL(normalizedUrl);
-                }
-            } catch (MalformedURLException e) {
-                if (Reflections.log != null) {
-                    Reflections.log.warn("Could not get URL", e);
-                }
-            }
-        }
-        return null;
+
+        Optional<URL> url1 = Stream.of(loaders)
+                .map(classLoader -> classLoader.getResource(resourceName))
+                .filter(Objects::nonNull)
+                .map(url -> {
+                    String externalForm = url.toExternalForm();
+                    try {
+                        return new URL(externalForm.substring(0, externalForm.lastIndexOf(aClass.getPackage()
+                                .getName()
+                                .replace(".", "/"))));
+                    } catch (MalformedURLException e) {
+                        if (nonNull(Reflections.log)) Reflections.log.warning("Could not get URL");
+                        e.printStackTrace();
+                        return  null;
+                    }
+                }).findFirst();
+
+        return url1.get();
+//        for (ClassLoader classLoader : loaders) {
+//            try {
+//                final URL url = classLoader.getResource(resourceName);
+//                if (url != null) {
+//                    final String normalizedUrl = url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(aClass.getPackage().getName().replace(".", "/")));
+//                    return new URL(normalizedUrl);
+//                }
+//            } catch (MalformedURLException e) {
+//                if (Reflections.log != null) {
+//                    Reflections.log.warn("Could not get URL", e);
+//                }
+//            }
+//        }
+
     }
 
     /**
@@ -139,9 +196,7 @@ public final class ClasspathHelper {
      *
      * @return the collection of URLs, not null
      */
-    public static Collection<URL> forClassLoader() {
-        return forClassLoader(classLoaders());
-    }
+    public static Collection<URL> forClassLoader() { return forClassLoader(classLoaders()); }
 
     /**
      * Returns a distinct collection of URLs based on URLs derived from class loaders.
@@ -156,20 +211,34 @@ public final class ClasspathHelper {
      *
      * @return the collection of URLs, not null
      */
-    public static Collection<URL> forClassLoader(ClassLoader... classLoaders) {
-        final Collection<URL> result = new ArrayList<URL>();
+    public static Collection<URL> forClassLoader(final ClassLoader... classLoaders) {
+
+        final Collection<URL> result = new ArrayList<>();
         final ClassLoader[] loaders = classLoaders(classLoaders);
-        for (ClassLoader classLoader : loaders) {
-            while (classLoader != null) {
-                if (classLoader instanceof URLClassLoader) {
-                    URL[] urls = ((URLClassLoader) classLoader).getURLs();
-                    if (urls != null) {
-                        result.addAll(Arrays.asList(urls));
+
+        Stream.of(loaders)
+                .forEach(classLoader -> {
+                    while (nonNull(classLoader)) {
+                        if (classLoader instanceof URLClassLoader) {
+                            final URL[] urls = ((URLClassLoader) classLoader).getURLs();
+                            if (nonNull(urls))
+                                result.addAll(Arrays.asList(urls));
+                        }
+                        classLoader = classLoader.getParent();
                     }
-                }
-                classLoader = classLoader.getParent();
-            }
-        }
+                });
+
+//        for (ClassLoader classLoader : loaders) {
+//            while (classLoader != null) {
+//                if (classLoader instanceof URLClassLoader) {
+//                    URL[] urls = ((URLClassLoader) classLoader).getURLs();
+//                    if (urls != null) {
+//                        result.addAll(Arrays.asList(urls));
+//                    }
+//                }
+//                classLoader = classLoader.getParent();
+//            }
+//        }
         return distinctUrls(result);
     }
 
@@ -183,19 +252,33 @@ public final class ClasspathHelper {
      * @return the collection of URLs, not null
      */
     public static Collection<URL> forJavaClassPath() {
-        Collection<URL> urls = new ArrayList<URL>();
-        String javaClassPath = System.getProperty("java.class.path");
-        if (javaClassPath != null) {
-            for (String path : javaClassPath.split(File.pathSeparator)) {
-                try {
-                    urls.add(new File(path).toURI().toURL());
-                } catch (Exception e) {
-                    if (Reflections.log != null) {
-                        Reflections.log.warn("Could not get URL", e);
-                    }
-                }
-            }
-        }
+
+        final Collection<URL> urls = new ArrayList<>();
+        final String javaClassPath = System.getProperty("java.class.path");
+
+        if (nonNull(javaClassPath))
+            urls.addAll(Stream.of(javaClassPath.split(File.pathSeparator))
+                            .map(path -> {
+                                try {
+                                    return new File(path).toURI().toURL();
+                                } catch (MalformedURLException e) {
+                                    if (nonNull(Reflections.log)) Reflections.log.warning("Could not get URL");
+                                    e.printStackTrace();
+                                    return null;
+                                }
+                            })
+                            .collect(Collectors.toList()));
+
+//            for (String path : javaClassPath.split(File.pathSeparator)) {
+//                try {
+//                    urls.add(new File(path).toURI().toURL());
+//                } catch (Exception e) {
+//                    if (nonNull(Reflections.log)) {
+//                        Reflections.log.warn("Could not get URL", e);
+//                    }
+//                }
+//            }
+
         return distinctUrls(urls);
     }
 
@@ -209,16 +292,28 @@ public final class ClasspathHelper {
      * @return the collection of URLs, not null
      */
     public static Collection<URL> forWebInfLib(final ServletContext servletContext) {
-        final Collection<URL> urls = new ArrayList<URL>();
-        Set<?> resourcePaths = servletContext.getResourcePaths("/WEB-INF/lib");
-        if (resourcePaths == null) {
-            return urls;
-        }
-        for (Object urlString : resourcePaths) {
+
+//        final Collection<URL> urls = new ArrayList<>();
+        final Set<?> resourcePaths = servletContext.getResourcePaths("/WEB-INF/lib");
+        if (isNull(resourcePaths))
+            return new ArrayList<>();
+
+        final List<URL> urls = resourcePaths.stream().map(urlStr -> {
             try {
-                urls.add(servletContext.getResource((String) urlString));
-            } catch (MalformedURLException e) { /*fuck off*/ }
-        }
+                return servletContext.getResource((String) urlStr);
+            } catch (MalformedURLException e) {
+                if (nonNull(Reflections.log)) Reflections.log.severe("Unable to get resource from servlet context resource path /WEB-INF/lib");
+                e.printStackTrace();
+                return null;
+            }
+        }).collect(Collectors.toList());
+
+//        for (Object urlString : resourcePaths) {
+//            try {
+//                urls.add(servletContext.getResource((String) urlString));
+//            } catch (MalformedURLException e) {
+//            }
+//        }
         return distinctUrls(urls);
     }
 
@@ -230,16 +325,19 @@ public final class ClasspathHelper {
      * @return the collection of URLs, not null
      */
     public static URL forWebInfClasses(final ServletContext servletContext) {
+
         try {
             final String path = servletContext.getRealPath("/WEB-INF/classes");
-            if (path != null) {
+            if (nonNull(path)) {
                 final File file = new File(path);
-                if (file.exists())
-                    return file.toURL();
-            } else {
+                if (file.exists()) return file.toURI().toURL();
+            } else
                 return servletContext.getResource("/WEB-INF/classes");
-            }
-        } catch (MalformedURLException e) { /*fuck off*/ }
+
+        } catch (MalformedURLException e) {
+            if (nonNull(Reflections.log)) Reflections.log.severe("Error in getting URL from /WEB-INF/classes");
+            e.printStackTrace();
+        }
         return null;
     }
 
@@ -253,9 +351,7 @@ public final class ClasspathHelper {
      *
      * @return the collection of URLs, not null
      */
-    public static Collection<URL> forManifest() {
-        return forManifest(forClassLoader());
-    }
+    public static Collection<URL> forManifest() { return forManifest(forClassLoader()); }
 
     /**
      * Returns a distinct collection of URLs from a single URL based on the Manifest information.
@@ -268,21 +364,27 @@ public final class ClasspathHelper {
      * @return the collection of URLs, not null
      */
     public static Collection<URL> forManifest(final URL url) {
-        final Collection<URL> result = new ArrayList<URL>();
+
+        final Collection<URL> result = new ArrayList<>();
+
         result.add(url);
         try {
             final String part = cleanPath(url);
             File jarFile = new File(part);
             JarFile myJar = new JarFile(part);
             URL validUrl = tryToGetValidUrl(jarFile.getPath(), new File(part).getParent(), part);
-            if (validUrl != null) { result.add(validUrl); }
+            if (validUrl != null) {
+                result.add(validUrl);
+            }
             final Manifest manifest = myJar.getManifest();
             if (manifest != null) {
                 final String classPath = manifest.getMainAttributes().getValue(new Attributes.Name("Class-Path"));
                 if (classPath != null) {
                     for (String jar : classPath.split(" ")) {
                         validUrl = tryToGetValidUrl(jarFile.getPath(), new File(part).getParent(), jar);
-                        if (validUrl != null) { result.add(validUrl); }
+                        if (validUrl != null) {
+                            result.add(validUrl);
+                        }
                     }
                 }
             }
@@ -305,61 +407,79 @@ public final class ClasspathHelper {
      * @return the collection of URLs, not null
      */
     public static Collection<URL> forManifest(final Iterable<URL> urls) {
-        Collection<URL> result = new ArrayList<URL>();
+
+        final Collection<URL> result = new ArrayList<>();
+
         // determine if any of the URLs are JARs, and get any dependencies
-        for (URL url : urls) {
-            result.addAll(forManifest(url));
-        }
+        urls.forEach(url -> result.addAll(forManifest(url)));
+
         return distinctUrls(result);
     }
 
     //a little bit cryptic...
-    static URL tryToGetValidUrl(String workingDir, String path, String filename) {
+    static URL tryToGetValidUrl(final String workingDir, final String path, final String filename) {
+
         try {
-            if (new File(filename).exists())
-                return new File(filename).toURI().toURL();
-            if (new File(path + File.separator + filename).exists())
-                return new File(path + File.separator + filename).toURI().toURL();
-            if (new File(workingDir + File.separator + filename).exists())
-                return new File(workingDir + File.separator + filename).toURI().toURL();
-            if (new File(new URL(filename).getFile()).exists())
-                return new File(new URL(filename).getFile()).toURI().toURL();
+
+            return exists(filename)
+                    ? Paths.get(filename).toUri().toURL()
+                    : exists(path + File.separator + filename)
+                        ? Paths.get(path + File.separator + filename).toUri().toURL()
+                        : exists(workingDir + File.separator + filename)
+                            ? Paths.get(workingDir + File.separator + filename).toUri().toURL()
+                            : exists(new URL(filename).getFile())
+                                ? Paths.get(new URL(filename).getFile()).toUri().toURL()
+                                : null;
+
+//            if (new File(filename).exists())
+//                return new File(filename).toURI().toURL();
+//            if (new File(path + File.separator + filename).exists())
+//                return new File(path + File.separator + filename).toURI().toURL();
+//            if (new File(workingDir + File.separator + filename).exists())
+//                return new File(workingDir + File.separator + filename).toURI().toURL();
+//            if (new File(new URL(filename).getFile()).exists())
+//                return new File(new URL(filename).getFile()).toURI().toURL();
         } catch (MalformedURLException e) {
             // don't do anything, we're going on the assumption it is a jar, which could be wrong
         }
         return null;
     }
 
+    private static boolean exists(final String path) { return Files.exists(Paths.get(path)); }
+
     /**
      * Cleans the URL.
      *
-     * @param url  the URL to clean, not null
+     * @param url the URL to clean, not null
      * @return the path, not null
      */
     public static String cleanPath(final URL url) {
+
         String path = url.getPath();
+
         try {
             path = URLDecoder.decode(path, "UTF-8");
-        } catch (UnsupportedEncodingException e) { /**/ }
-        if (path.startsWith("jar:")) {
-            path = path.substring("jar:".length());
-        }
-        if (path.startsWith("file:")) {
-            path = path.substring("file:".length());
-        }
-        if (path.endsWith("!/")) {
-            path = path.substring(0, path.lastIndexOf("!/")) + "/";
-        }
-        return path;
+        } catch (UnsupportedEncodingException e) { }
+
+        return path.startsWith("jar:")
+                ? path.substring("jar:".length())
+                : path.startsWith("file:")
+                    ? path.substring("file:".length())
+                    : path.endsWith("!/")
+                        ? path.substring(0, path.lastIndexOf("!/")) + "/"
+                        : path;
     }
 
     private static String resourceName(String name) {
-        if (name != null) {
-            String resourceName = name.replace(".", "/");
-            resourceName = resourceName.replace("\\", "/");
-            if (resourceName.startsWith("/")) {
+
+        if (nonNull(name)) {
+
+            String resourceName = name.replace(".", "/")
+                                        .replace("\\", "/");
+
+            if (resourceName.startsWith("/"))
                 resourceName = resourceName.substring(1);
-            }
+
             return resourceName;
         }
         return null;
@@ -367,10 +487,11 @@ public final class ClasspathHelper {
 
     //http://michaelscharf.blogspot.co.il/2006/11/javaneturlequals-and-hashcode-make.html
     private static Collection<URL> distinctUrls(Collection<URL> urls) {
-        Map<String, URL> distinct = new LinkedHashMap<String, URL>(urls.size());
-        for (URL url : urls) {
-            distinct.put(url.toExternalForm(), url);
-        }
-        return distinct.values();
+
+        return urls.stream()
+                    .filter(Objects::nonNull)
+                    .collect(LinkedHashMap::new,
+                            (map, url) -> map.put(url.toExternalForm(), url),
+                            LinkedHashMap<String, URL>::putAll).values();
     }
 }
