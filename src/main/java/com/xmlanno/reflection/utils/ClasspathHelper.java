@@ -1,4 +1,4 @@
-package com.xmlanno.utils;
+package com.xmlanno.reflection.utils;
 
 import com.xmlanno.reflection.Reflections;
 
@@ -11,30 +11,24 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.xmlanno.utils.XmlAnnoUtil.isEmpty;
-import static com.xmlanno.utils.XmlAnnoUtil.toLinkedMap;
+import static com.xmlanno.reflection.utils.XmlAnnoUtil.fileExists;
+import static com.xmlanno.reflection.utils.XmlAnnoUtil.isEmpty;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
@@ -421,13 +415,13 @@ public final class ClasspathHelper {
 
         try {
 
-            return exists(filename)
+            return fileExists(filename)
                     ? Paths.get(filename).toUri().toURL()
-                    : exists(path + File.separator + filename)
+                    : fileExists(path + File.separator + filename)
                         ? Paths.get(path + File.separator + filename).toUri().toURL()
-                        : exists(workingDir + File.separator + filename)
+                        : fileExists(workingDir + File.separator + filename)
                             ? Paths.get(workingDir + File.separator + filename).toUri().toURL()
-                            : exists(new URL(filename).getFile())
+                            : fileExists(new URL(filename).getFile())
                                 ? Paths.get(new URL(filename).getFile()).toUri().toURL()
                                 : null;
 
@@ -444,8 +438,6 @@ public final class ClasspathHelper {
         }
         return null;
     }
-
-    private static boolean exists(final String path) { return Files.exists(Paths.get(path)); }
 
     /**
      * Cleans the URL.

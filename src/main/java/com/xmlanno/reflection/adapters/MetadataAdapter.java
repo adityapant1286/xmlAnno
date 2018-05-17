@@ -1,4 +1,4 @@
-package com.xmlanno.adapters;
+package com.xmlanno.reflection.adapters;
 
 import java.util.List;
 
@@ -30,7 +30,7 @@ public interface MetadataAdapter<C, F, M> {
 
     String getFieldName(final F field);
 
-//    C getOrCreateClassObject(Vfs.File file) throws Exception;
+    C getOrCreateClassObject(Vfs.File file) throws Exception;
 
     String getMethodModifier(M method);
 

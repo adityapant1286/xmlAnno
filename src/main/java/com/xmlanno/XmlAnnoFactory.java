@@ -1,6 +1,6 @@
 package com.xmlanno;
 
-import static com.xmlanno.utils.XmlAnnoUtil.hasText;
+import static com.xmlanno.reflection.utils.XmlAnnoUtil.hasText;
 
 public final class XmlAnnoFactory {
 

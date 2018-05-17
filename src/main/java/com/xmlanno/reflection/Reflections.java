@@ -1,17 +1,23 @@
 package com.xmlanno.reflection;
 
-import com.xmlanno.configs.Configurations;
+import com.xmlanno.reflection.configs.Configurations;
 import com.xmlanno.reflection.scanners.Scanner;
 
+import java.util.logging.Logger;
+
 public class Reflections {
+
+    public static Logger log = Logger.getLogger(Reflections.class.getName());
+
 
     protected final transient Configurations configuration;
     protected Warehouse warehouse;
 
-    /**
+/**
      * constructs a Reflections instance and scan according to given {@link org.reflections.Configuration}
      * <p>it is preferred to use {@link org.reflections.util.ConfigurationBuilder}
      */
+
     public Reflections(final Configurations configuration) {
         this.configuration = configuration;
         warehouse = new Warehouse(configuration);
@@ -31,7 +37,8 @@ public class Reflections {
         }
     }
 
-    /**
+
+/**
      * a convenient constructor for scanning within a package prefix.
      * <p>this actually create a {@link Configurations} with:
      * <br> - urls that contain resources with name {@code prefix}
@@ -40,11 +47,13 @@ public class Reflections {
      * @param prefix package prefix, to be used with {@link org.reflections.util.ClasspathHelper#forPackage(String, ClassLoader...)} )}
      * @param scanners optionally supply scanners, otherwise defaults to {@link org.reflections.scanners.TypeAnnotationsScanner} and {@link org.reflections.scanners.SubTypesScanner}
      */
+
     public Reflections(final String prefix, @Nullable final Scanner... scanners) {
         this((Object) prefix, scanners);
     }
 
-    /**
+
+/**
      * a convenient constructor for Reflections, where given {@code Object...} parameter types can be either:
      * <ul>
      *     <li>{@link String} - would add urls using {@link org.reflections.util.ClasspathHelper#forPackage(String, ClassLoader...)} ()}</li>
@@ -67,6 +76,7 @@ public class Reflections {
      *     new Reflections(myUrl, myOtherUrl);
      * </pre>
      */
+
     public Reflections(final Object... params) {
         this(ConfigurationBuilder.build(params));
     }
@@ -173,15 +183,18 @@ public class Reflections {
         }
     }
 
-    /** collect saved Reflection xml resources and merge it into a Reflections instance
+
+/** collect saved Reflection xml resources and merge it into a Reflections instance
      * <p>by default, resources are collected from all urls that contains the package META-INF/reflections
      * and includes files matching the pattern .*-reflections.xml
      * */
+
     public static Reflections collect() {
         return collect("META-INF/reflections/", new FilterBuilder().include(".*-reflections.xml"));
     }
 
-    /**
+
+/**
      * collect saved Reflections resources from all urls that contains the given packagePrefix and matches the given resourceNameFilter
      * and de-serializes them using the default serializer {@link org.reflections.serializers.XmlSerializer} or using the optionally supplied optionalSerializer
      * <p>
@@ -189,6 +202,7 @@ public class Reflections {
      * so that relevant urls could be found much faster
      * @param optionalSerializer - optionally supply one serializer instance. if not specified or null, {@link org.reflections.serializers.XmlSerializer} will be used
      */
+
     public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, @Nullable Serializer... optionalSerializer) {
         Serializer serializer = optionalSerializer != null && optionalSerializer.length == 1 ? optionalSerializer[0] : new XmlSerializer();
 
@@ -224,9 +238,11 @@ public class Reflections {
         return reflections;
     }
 
-    /** merges saved Reflections resources from the given input stream, using the serializer configured in this instance's Configuration
+
+/** merges saved Reflections resources from the given input stream, using the serializer configured in this instance's Configuration
      * <br> useful if you know the serialized resource location and prefer not to look it up the classpath
      * */
+
     public Reflections collect(final InputStream inputStream) {
         try {
             merge(configuration.getSerializer().read(inputStream));
@@ -238,9 +254,11 @@ public class Reflections {
         return this;
     }
 
-    /** merges saved Reflections resources from the given file, using the serializer configured in this instance's Configuration
+
+/** merges saved Reflections resources from the given file, using the serializer configured in this instance's Configuration
      * <p> useful if you know the serialized resource location and prefer not to look it up the classpath
      * */
+
     public Reflections collect(final File file) {
         FileInputStream inputStream = null;
         try {
@@ -253,9 +271,11 @@ public class Reflections {
         }
     }
 
-    /**
+
+/**
      * merges a Reflections instance metadata into this instance
      */
+
     public Reflections merge(final Reflections reflections) {
         if (reflections.warehouse != null) {
             for (String indexName : reflections.warehouse.keySet()) {
@@ -270,7 +290,7 @@ public class Reflections {
         return this;
     }
 
-    /**
+/**
      * expand super types after scanning, for super types that were not scanned.
      * this is helpful in finding the transitive closure without scanning all 3rd party dependencies.
      * it uses {@link ReflectionUtils#getSuperTypes(Class)}.
@@ -281,6 +301,7 @@ public class Reflections {
      *     <li>if expanding supertypes, B will be expanded with A (A->B in warehouse) - then getSubTypes(A) will return C</li>
      * </ul>
      */
+
     public void expandSuperTypes() {
         if (warehouse.keySet().contains(index(SubTypesScanner.class))) {
             Multimap<String, String> mmap = warehouse.get(index(SubTypesScanner.class));
@@ -306,16 +327,19 @@ public class Reflections {
     }
 
     //query
-    /**
+
+/**
      * gets all sub types in hierarchy of a given type
      * <p/>depends on SubTypesScanner configured
      */
+
     public <T> Set<Class<? extends T>> getSubTypesOf(final Class<T> type) {
         return Sets.newHashSet(ReflectionUtils.<T>forNames(
                 warehouse.getAll(index(SubTypesScanner.class), Arrays.asList(type.getName())), loaders()));
     }
 
-    /**
+
+/**
      * get types annotated with a given annotation, both classes and annotations
      * <p>{@link java.lang.annotation.Inherited} is not honored by default.
      * <p>when honoring @Inherited, meta-annotation should only effect annotated super classes and its sub types
@@ -323,11 +347,13 @@ public class Reflections {
      * Also, this meta-annotation causes annotations to be inherited only from superclasses; annotations on implemented interfaces have no effect.</i>
      * <p/>depends on TypeAnnotationsScanner and SubTypesScanner configured
      */
+
     public Set<Class<?>> getTypesAnnotatedWith(final Class<? extends Annotation> annotation) {
         return getTypesAnnotatedWith(annotation, false);
     }
 
-    /**
+
+/**
      * get types annotated with a given annotation, both classes and annotations
      * <p>{@link java.lang.annotation.Inherited} is honored according to given honorInherited.
      * <p>when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types
@@ -336,26 +362,31 @@ public class Reflections {
      * Also, this meta-annotation causes annotations to be inherited only from superclasses; annotations on implemented interfaces have no effect.</i>
      * <p/>depends on TypeAnnotationsScanner and SubTypesScanner configured
      */
+
     public Set<Class<?>> getTypesAnnotatedWith(final Class<? extends Annotation> annotation, boolean honorInherited) {
         Iterable<String> annotated = warehouse.get(index(TypeAnnotationsScanner.class), annotation.getName());
         Iterable<String> classes = getAllAnnotated(annotated, annotation.isAnnotationPresent(Inherited.class), honorInherited);
         return Sets.newHashSet(concat(forNames(annotated, loaders()), forNames(classes, loaders())));
     }
 
-    /**
+
+/**
      * get types annotated with a given annotation, both classes and annotations, including annotation member values matching
      * <p>{@link java.lang.annotation.Inherited} is not honored by default
      * <p/>depends on TypeAnnotationsScanner configured
      */
+
     public Set<Class<?>> getTypesAnnotatedWith(final Annotation annotation) {
         return getTypesAnnotatedWith(annotation, false);
     }
 
-    /**
+
+/**
      * get types annotated with a given annotation, both classes and annotations, including annotation member values matching
      * <p>{@link java.lang.annotation.Inherited} is honored according to given honorInherited
      * <p/>depends on TypeAnnotationsScanner configured
      */
+
     public Set<Class<?>> getTypesAnnotatedWith(final Annotation annotation, boolean honorInherited) {
         Iterable<String> annotated = warehouse.get(index(TypeAnnotationsScanner.class), annotation.annotationType().getName());
         Iterable<Class<?>> filter = filter(forNames(annotated, loaders()), withAnnotation(annotation));
@@ -382,80 +413,104 @@ public class Reflections {
         }
     }
 
-    /**
+
+/**
      * get all methods annotated with a given annotation
      * <p/>depends on MethodAnnotationsScanner configured
      */
+
     public Set<Method> getMethodsAnnotatedWith(final Class<? extends Annotation> annotation) {
         Iterable<String> methods = warehouse.get(index(MethodAnnotationsScanner.class), annotation.getName());
         return getMethodsFromDescriptors(methods, loaders());
     }
 
-    /**
+
+/**
      * get all methods annotated with a given annotation, including annotation member values matching
      * <p/>depends on MethodAnnotationsScanner configured
      */
+
     public Set<Method> getMethodsAnnotatedWith(final Annotation annotation) {
         return filter(getMethodsAnnotatedWith(annotation.annotationType()), withAnnotation(annotation));
     }
 
-    /** get methods with parameter types matching given {@code types}*/
+
+/** get methods with parameter types matching given {@code types}*/
+
     public Set<Method> getMethodsMatchParams(Class<?>... types) {
         return getMethodsFromDescriptors(warehouse.get(index(MethodParameterScanner.class), names(types).toString()), loaders());
     }
 
-    /** get methods with return type match given type */
+
+/** get methods with return type match given type */
+
     public Set<Method> getMethodsReturn(Class returnType) {
         return getMethodsFromDescriptors(warehouse.get(index(MethodParameterScanner.class), names(returnType)), loaders());
     }
 
-    /** get methods with any parameter annotated with given annotation */
+
+/** get methods with any parameter annotated with given annotation */
+
     public Set<Method> getMethodsWithAnyParamAnnotated(Class<? extends Annotation> annotation) {
         return getMethodsFromDescriptors(warehouse.get(index(MethodParameterScanner.class), annotation.getName()), loaders());
 
     }
 
-    /** get methods with any parameter annotated with given annotation, including annotation member values matching */
+
+/** get methods with any parameter annotated with given annotation, including annotation member values matching */
+
     public Set<Method> getMethodsWithAnyParamAnnotated(Annotation annotation) {
         return filter(getMethodsWithAnyParamAnnotated(annotation.annotationType()), withAnyParameterAnnotation(annotation));
     }
 
-    /**
+
+/**
      * get all constructors annotated with a given annotation
      * <p/>depends on MethodAnnotationsScanner configured
      */
+
     public Set<Constructor> getConstructorsAnnotatedWith(final Class<? extends Annotation> annotation) {
         Iterable<String> methods = warehouse.get(index(MethodAnnotationsScanner.class), annotation.getName());
         return getConstructorsFromDescriptors(methods, loaders());
     }
 
-    /**
+
+/**
      * get all constructors annotated with a given annotation, including annotation member values matching
      * <p/>depends on MethodAnnotationsScanner configured
      */
+
     public Set<Constructor> getConstructorsAnnotatedWith(final Annotation annotation) {
         return filter(getConstructorsAnnotatedWith(annotation.annotationType()), withAnnotation(annotation));
     }
 
-    /** get constructors with parameter types matching given {@code types}*/
+
+/** get constructors with parameter types matching given {@code types}*/
+
     public Set<Constructor> getConstructorsMatchParams(Class<?>... types) {
         return getConstructorsFromDescriptors(warehouse.get(index(MethodParameterScanner.class), names(types).toString()), loaders());
     }
 
-    /** get constructors with any parameter annotated with given annotation */
+
+/** get constructors with any parameter annotated with given annotation */
+
     public Set<Constructor> getConstructorsWithAnyParamAnnotated(Class<? extends Annotation> annotation) {
         return getConstructorsFromDescriptors(warehouse.get(index(MethodParameterScanner.class), annotation.getName()), loaders());
     }
 
-    /** get constructors with any parameter annotated with given annotation, including annotation member values matching */
+
+/** get constructors with any parameter annotated with given annotation, including annotation member values matching */
+
     public Set<Constructor> getConstructorsWithAnyParamAnnotated(Annotation annotation) {
         return filter(getConstructorsWithAnyParamAnnotated(annotation.annotationType()), withAnyParameterAnnotation(annotation));
     }
 
-    /**
+
+/**
      * get all fields annotated with a given annotation
      * <p/>depends on FieldAnnotationsScanner configured
      */
+
     public Set<Field> getFieldsAnnotatedWith(final Class<? extends Annotation> annotation) {
         final Set<Field> result = Sets.newHashSet();
         for (String annotated : warehouse.get(index(FieldAnnotationsScanner.class), annotation.getName())) {
@@ -464,26 +519,32 @@ public class Reflections {
         return result;
     }
 
-    /**
+
+/**
      * get all methods annotated with a given annotation, including annotation member values matching
      * <p/>depends on FieldAnnotationsScanner configured
      */
+
     public Set<Field> getFieldsAnnotatedWith(final Annotation annotation) {
         return filter(getFieldsAnnotatedWith(annotation.annotationType()), withAnnotation(annotation));
     }
 
-    /** get resources relative paths where simple name (key) matches given namePredicate
+
+/** get resources relative paths where simple name (key) matches given namePredicate
      * <p>depends on ResourcesScanner configured
      * */
+
     public Set<String> getResources(final Predicate<String> namePredicate) {
         Iterable<String> resources = Iterables.filter(warehouse.get(index(ResourcesScanner.class)).keySet(), namePredicate);
         return Sets.newHashSet(warehouse.get(index(ResourcesScanner.class), resources));
     }
 
-    /** get resources relative paths where simple name (key) matches given regular expression
+
+/** get resources relative paths where simple name (key) matches given regular expression
      * <p>depends on ResourcesScanner configured
      * <pre>Set<String> xmls = reflections.getResources(".*\\.xml");</pre>
      */
+
     public Set<String> getResources(final Pattern pattern) {
         return getResources(new Predicate<String>() {
             public boolean apply(String input) {
@@ -492,49 +553,61 @@ public class Reflections {
         });
     }
 
-    /** get parameter names of given {@code method}
+
+/** get parameter names of given {@code method}
      * <p>depends on MethodParameterNamesScanner configured
      */
+
     public List<String> getMethodParamNames(Method method) {
         Iterable<String> names = warehouse.get(index(MethodParameterNamesScanner.class), name(method));
         return !Iterables.isEmpty(names) ? Arrays.asList(Iterables.getOnlyElement(names).split(", ")) : Arrays.<String>asList();
     }
 
-    /** get parameter names of given {@code constructor}
+
+/** get parameter names of given {@code constructor}
      * <p>depends on MethodParameterNamesScanner configured
      */
+
     public List<String> getConstructorParamNames(Constructor constructor) {
         Iterable<String> names = warehouse.get(index(MethodParameterNamesScanner.class), Utils.name(constructor));
         return !Iterables.isEmpty(names) ? Arrays.asList(Iterables.getOnlyElement(names).split(", ")) : Arrays.<String>asList();
     }
 
-    /** get all given {@code field} usages in methods and constructors
+
+/** get all given {@code field} usages in methods and constructors
      * <p>depends on MemberUsageScanner configured
      */
+
     public Set<Member> getFieldUsage(Field field) {
         return getMembersFromDescriptors(warehouse.get(index(MemberUsageScanner.class), name(field)));
     }
 
-    /** get all given {@code method} usages in methods and constructors
+
+/** get all given {@code method} usages in methods and constructors
      * <p>depends on MemberUsageScanner configured
      */
+
     public Set<Member> getMethodUsage(Method method) {
         return getMembersFromDescriptors(warehouse.get(index(MemberUsageScanner.class), name(method)));
     }
 
-    /** get all given {@code constructors} usages in methods and constructors
+
+/** get all given {@code constructors} usages in methods and constructors
      * <p>depends on MemberUsageScanner configured
      */
+
     public Set<Member> getConstructorUsage(Constructor constructor) {
         return getMembersFromDescriptors(warehouse.get(index(MemberUsageScanner.class), name(constructor)));
     }
 
-    /** get all types scanned. this is effectively similar to getting all subtypes of Object.
+
+/** get all types scanned. this is effectively similar to getting all subtypes of Object.
      * <p>depends on SubTypesScanner configured with {@code SubTypesScanner(false)}, otherwise {@code ReflectionsException} is thrown
      * <p><i>note using this might be a bad practice. it is better to get types matching some criteria,
      * such as {@link #getSubTypesOf(Class)} or {@link #getTypesAnnotatedWith(Class)}</i>
      * @return Set of String, and not of Class, in order to avoid definition of all types in PermGen
      */
+
     public Set<String> getAllTypes() {
         Set<String> allTypes = Sets.newHashSet(warehouse.getAll(index(SubTypesScanner.class), Object.class.getName()));
         if (allTypes.isEmpty()) {
@@ -544,31 +617,39 @@ public class Reflections {
         return allTypes;
     }
 
-    /** returns the {@link org.reflections.Store} used for storing and querying the metadata */
+
+/** returns the {@link org.reflections.Store} used for storing and querying the metadata */
+
     public Store getWarehouse() {
         return warehouse;
     }
 
-    /** returns the {@link org.reflections.Configuration} object of this instance */
+
+/** returns the {@link org.reflections.Configuration} object of this instance */
+
     public Configuration getConfiguration() {
         return configuration;
     }
 
-    /**
+
+/**
      * serialize to a given directory and filename
      * <p>* it is preferred to specify a designated directory (for example META-INF/reflections),
      * so that it could be found later much faster using the load method
      * <p>see the documentation for the save method on the configured {@link org.reflections.serializers.Serializer}
      */
+
     public File save(final String filename) {
         return save(filename, configuration.getSerializer());
     }
 
-    /**
+
+/**
      * serialize to a given directory and filename using given serializer
      * <p>* it is preferred to specify a designated directory (for example META-INF/reflections),
      * so that it could be found later much faster using the load method
      */
+
     public File save(final String filename, final Serializer serializer) {
         File file = serializer.save(this, filename);
         if (log != null) //noinspection ConstantConditions
@@ -577,4 +658,5 @@ public class Reflections {
     }
 
     private ClassLoader[] loaders() { return configuration.getClassLoaders(); }
+
 }

@@ -5,9 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
-import com.xmlanno.configs.Configurations;
-import com.xmlanno.utils.TailCall;
-import com.xmlanno.utils.TailCalls;
+import com.xmlanno.reflection.configs.Configurations;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static java.util.Objects.isNull;
 

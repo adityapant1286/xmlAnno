@@ -1,6 +1,6 @@
-package com.xmlanno.configs;
+package com.xmlanno.reflection.configs;
 
-import com.xmlanno.adapters.MetadataAdapter;
+import com.xmlanno.reflection.adapters.MetadataAdapter;
 
 import javax.annotation.Nullable;
 import java.net.URL;

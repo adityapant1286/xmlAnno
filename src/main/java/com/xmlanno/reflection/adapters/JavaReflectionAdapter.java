@@ -1,4 +1,4 @@
-package com.xmlanno.adapters;
+package com.xmlanno.reflection.adapters;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -14,8 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.xmlanno.utils.XmlAnnoUtil.repeat;
-import static java.util.Objects.isNull;
+import static com.xmlanno.reflection.utils.XmlAnnoUtil.repeat;
 
 public class JavaReflectionAdapter implements MetadataAdapter<Class, Field, Member> {
 

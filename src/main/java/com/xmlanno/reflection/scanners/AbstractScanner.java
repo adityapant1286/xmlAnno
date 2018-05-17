@@ -3,8 +3,9 @@ package com.xmlanno.reflection.scanners;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Multimap;
-import com.xmlanno.adapters.MetadataAdapter;
-import com.xmlanno.configs.Configurations;
+import com.xmlanno.reflection.ReflectionsException;
+import com.xmlanno.reflection.adapters.MetadataAdapter;
+import com.xmlanno.reflection.configs.Configurations;
 
 
 public abstract class AbstractScanner implements Scanner {
@@ -15,17 +16,17 @@ public abstract class AbstractScanner implements Scanner {
 
     public boolean acceptsInput(String file) { return getMetadataAdapter().acceptsInput(file); }
 
-//    public Object scan(Vfs.File file, Object classObject) {
-//        if (classObject == null) {
-//            try {
-//                classObject = configuration.getMetadataAdapter().getOrCreateClassObject(file);
-//            } catch (Exception e) {
-//                throw new ReflectionsException("could not create class object from file " + file.getRelativePath(), e);
-//            }
-//        }
-//        scan(classObject);
-//        return classObject;
-//    }
+    public Object scan(Vfs.File file, Object classObject) {
+        if (classObject == null) {
+            try {
+                classObject = configuration.getMetadataAdapter().getOrCreateClassObject(file);
+            } catch (Exception e) {
+                throw new ReflectionsException("could not create class object from file " + file.getRelativePath(), e);
+            }
+        }
+        scan(classObject);
+        return classObject;
+    }
 
     public abstract void scan(Object cls);
 

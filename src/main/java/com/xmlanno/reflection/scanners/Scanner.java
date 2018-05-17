@@ -2,7 +2,7 @@ package com.xmlanno.reflection.scanners;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Multimap;
-import com.xmlanno.configs.Configurations;
+import com.xmlanno.reflection.configs.Configurations;
 
 public interface Scanner {
 
@@ -10,7 +10,7 @@ public interface Scanner {
 
     Multimap<String, String> getWarehouse();
 
-    void setStore(Multimap<String, String> store);
+    void setWarehouse(Multimap<String, String> warehouse);
 
     Scanner filterResultsBy(Predicate<String> filter);
 

@@ -1,4 +1,4 @@
-package com.xmlanno.utils;
+package com.xmlanno.reflection.utils;
 
 /**
  * <p>
