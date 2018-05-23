@@ -5,6 +5,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.xmlanno.reflection.Reflections;
 import com.xmlanno.reflection.ReflectionsException;
+import com.xmlanno.reflection.utils.ClasspathHelper;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -181,29 +182,25 @@ public abstract class Vfs {
 
     /** default url types used by {@link Vfs#fromURL(java.net.URL)}
      * <p>
-     * <p>jarFile - creates a {@link org.reflections.vfs.ZipDir} over jar file
-     * <p>jarUrl - creates a {@link org.reflections.vfs.ZipDir} over a jar url (contains ".jar!/" in it's name), using Java's {@link JarURLConnection}
-     * <p>directory - creates a {@link org.reflections.vfs.SystemDir} over a file system directory
+     * <p>jarFile - creates a {@link ZipDir} over jar file
+     * <p>jarUrl - creates a {@link ZipDir} over a jar url (contains ".jar!/" in it's name), using Java's {@link JarURLConnection}
+     * <p>directory - creates a {@link SystemDir} over a file system directory
      * <p>jboss vfs - for protocols vfs, using jboss vfs (should be provided in classpath)
-     * <p>jboss vfsfile - creates a {@link UrlTypeVFS} for protocols vfszip and vfsfile.
+     * <p>jboss vfsfile - creates a {@link UrlTypeVfs} for protocols vfszip and vfsfile.
      * <p>bundle - for bundle protocol, using eclipse FileLocator (should be provided in classpath)
      * <p>jarInputStream - creates a {@link JarInputDir} over jar files, using Java's JarInputStream
      * */
     public static enum DefaultUrlTypes implements UrlType {
-        jarFile {
-            public boolean matches(URL url) {
-                return url.getProtocol().equals("file") && hasJarFileInPath(url);
-            }
 
-            public Dir createDir(final URL url) throws Exception {
-                return new ZipDir(new JarFile(getFile(url)));
-            }
+        jarFile {
+
+            public boolean matches(URL url) { return url.getProtocol().equals("file") && hasJarFileInPath(url); }
+
+            public Dir createDir(final URL url) throws Exception { return new ZipDir(new JarFile(getFile(url))); }
         },
 
         jarUrl {
-            public boolean matches(URL url) {
-                return "jar".equals(url.getProtocol()) || "zip".equals(url.getProtocol()) || "wsjar".equals(url.getProtocol());
-            }
+            public boolean matches(URL url) { return "jar".equals(url.getProtocol()) || "zip".equals(url.getProtocol()) || "wsjar".equals(url.getProtocol()); }
 
             public Dir createDir(URL url) throws Exception {
                 try {
@@ -214,10 +211,8 @@ public abstract class Vfs {
                     }
                 } catch (Throwable e) { /*fallback*/ }
                 java.io.File file = getFile(url);
-                if (file != null) {
-                    return new ZipDir(new JarFile(file));
-                }
-                return null;
+
+                return nonNull(file) ? new ZipDir(new JarFile(file)) : null;
             }
         },
 
@@ -226,18 +221,15 @@ public abstract class Vfs {
                 if (url.getProtocol().equals("file") && !hasJarFileInPath(url)) {
                     java.io.File file = getFile(url);
                     return file != null && file.isDirectory();
-                } else return false;
+                } else
+                    return false;
             }
 
-            public Dir createDir(final URL url) throws Exception {
-                return new SystemDir(getFile(url));
-            }
+            public Dir createDir(final URL url) { return new SystemDir(getFile(url)); }
         },
 
         jboss_vfs {
-            public boolean matches(URL url) {
-                return url.getProtocol().equals("vfs");
-            }
+            public boolean matches(URL url) { return url.getProtocol().equals("vfs"); }
 
             public Vfs.Dir createDir(URL url) throws Exception {
                 Object content = url.openConnection().getContent();
@@ -251,34 +243,26 @@ public abstract class Vfs {
         },
 
         jboss_vfsfile {
-            public boolean matches(URL url) throws Exception {
-                return "vfszip".equals(url.getProtocol()) || "vfsfile".equals(url.getProtocol());
-            }
+            public boolean matches(URL url) throws Exception { return "vfszip".equals(url.getProtocol()) || "vfsfile".equals(url.getProtocol()); }
 
-            public Dir createDir(URL url) throws Exception {
-                return new UrlTypeVFS().createDir(url);
-            }
+            public Dir createDir(URL url) throws Exception { return new UrlTypeVfs().createDir(url); }
         },
 
         bundle {
-            public boolean matches(URL url) throws Exception {
-                return url.getProtocol().startsWith("bundle");
-            }
+            public boolean matches(URL url) throws Exception { return url.getProtocol().startsWith("bundle"); }
 
             public Dir createDir(URL url) throws Exception {
                 return fromURL((URL) ClasspathHelper.contextClassLoader().
-                        loadClass("org.eclipse.core.runtime.FileLocator").getMethod("resolve", URL.class).invoke(null, url));
+                                                    loadClass("org.eclipse.core.runtime.FileLocator")
+                                                    .getMethod("resolve", URL.class)
+                                                    .invoke(null, url));
             }
         },
 
         jarInputStream {
-            public boolean matches(URL url) throws Exception {
-                return url.toExternalForm().contains(".jar");
-            }
+            public boolean matches(URL url) throws Exception { return url.toExternalForm().contains(".jar"); }
 
-            public Dir createDir(final URL url) throws Exception {
-                return new JarInputDir(url);
-            }
+            public Dir createDir(final URL url) throws Exception { return new JarInputDir(url); }
         }
     }
 }
